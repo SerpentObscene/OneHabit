@@ -1,33 +1,32 @@
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, Settings } from 'lucide-react'
+import { Home, BarChart2, User } from 'lucide-react'
 
 export default function BottomNav() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
+  const items = [
+    { icon: Home, path: '/' },
+    { icon: BarChart2, path: '/stats' },
+    { icon: User, path: '/profile' },
+  ]
+
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 bg-card border-t border-border flex justify-around items-end"
+      className="fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur border-t border-border flex justify-around items-end"
       style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
     >
-      <button
-        onClick={() => navigate('/')}
-        className={`flex flex-col items-center gap-1 px-8 pt-3 pb-2 transition-colors ${
-          pathname === '/' ? 'text-ember' : 'text-muted-foreground'
-        }`}
-      >
-        <Home className="w-5 h-5" />
-        <span className="text-xs lowercase">today</span>
-      </button>
-      <button
-        onClick={() => navigate('/settings')}
-        className={`flex flex-col items-center gap-1 px-8 pt-3 pb-2 transition-colors ${
-          pathname === '/settings' ? 'text-ember' : 'text-muted-foreground'
-        }`}
-      >
-        <Settings className="w-5 h-5" />
-        <span className="text-xs lowercase">settings</span>
-      </button>
+      {items.map(({ icon: Icon, path }) => (
+        <button
+          key={path}
+          onClick={() => navigate(path)}
+          className={`flex items-center justify-center px-8 pt-4 pb-3 transition-colors ${
+            pathname === path ? 'text-ember' : 'text-muted-foreground'
+          }`}
+        >
+          <Icon className="w-6 h-6" />
+        </button>
+      ))}
     </nav>
   )
 }

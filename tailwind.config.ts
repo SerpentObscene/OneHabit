@@ -5,15 +5,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        warm: '#18100a',
+        warm: '#f5ede6',
         ember: '#f26419',
-        card: '#261810',
-        background: '#18100a',
-        foreground: '#fdf0e0',
+        card: '#ffffff',
+        background: '#f5ede6',
+        foreground: '#1a0c06',
         accent: '#f26419',
         'accent-foreground': '#ffffff',
         'muted-foreground': '#8a6a52',
-        border: 'rgba(253,240,224,0.12)',
+        border: 'rgba(26,12,6,0.10)',
       },
       boxShadow: {
         glow: '0 0 40px rgba(242,100,25,0.35), 0 0 80px rgba(242,100,25,0.15)',

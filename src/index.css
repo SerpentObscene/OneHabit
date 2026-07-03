@@ -3,12 +3,12 @@
 @tailwind utilities;
 
 :root {
-  --warm: #18100a;
+  --warm: #f5ede6;
   --ember: #f26419;
-  --card: #261810;
-  --foreground: #fdf0e0;
+  --card: #ffffff;
+  --foreground: #1a0c06;
   --muted-foreground: #8a6a52;
-  --border: rgba(253, 240, 224, 0.12);
+  --border: rgba(26, 12, 6, 0.10);
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
 }
@@ -20,6 +20,7 @@
   body {
     background: var(--warm);
     color: var(--foreground);
+    -webkit-tap-highlight-color: transparent;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
     min-height: 100dvh;
   }
