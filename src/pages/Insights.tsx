@@ -91,7 +91,8 @@ export default function Insights() {
     const { error } = await supabase.from("reflections")
       .delete().eq("user_id", user.id).eq("week_start", weekStart);
     if (error) return toast.error(error.message);
-    setPastReflections(prev => prev.filter(r => r.week_start !== weekStart));
+    if (weekStart === thisWeek) { setReflection(""); setSavedThisWeek(null); }
+    else setPastReflections(prev => prev.filter(r => r.week_start !== weekStart));
     toast.success("Reflection deleted.");
   };
 
@@ -123,7 +124,7 @@ export default function Insights() {
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Week {isoWeekNumber(thisWeek)}</p>
           <p className="text-sm text-muted-foreground mb-3">What helped this week? What got in the way?</p>
           <Textarea
-            rows={5}
+            rows={4}
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
             placeholder="A short note to your future self…"
@@ -136,69 +137,91 @@ export default function Insights() {
           >
             {savedThisWeek === reflection && savedThisWeek ? "Saved" : "Save reflection"}
           </Button>
+
+          {/* Reflection log */}
+          {(savedThisWeek || pastReflections.length > 0) && (
+            <div className="mt-5 space-y-3 border-t border-border pt-4">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">reflection log</p>
+
+              {/* Current week saved entry */}
+              {savedThisWeek && (
+                <ReflectionEntry
+                  weekStart={thisWeek}
+                  content={savedThisWeek}
+                  weekNum={isoWeekNumber(thisWeek)}
+                  isCurrent
+                  editingWeek={editingWeek}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                  onEdit={() => { setEditingWeek(thisWeek); setEditContent(savedThisWeek); }}
+                  onCancelEdit={() => setEditingWeek(null)}
+                  onSaveEdit={() => saveEdit(thisWeek)}
+                  onDelete={() => deleteReflection(thisWeek)}
+                />
+              )}
+
+              {/* Past weeks */}
+              {pastReflections.map((r) => (
+                <ReflectionEntry
+                  key={r.week_start}
+                  weekStart={r.week_start}
+                  content={r.content}
+                  weekNum={isoWeekNumber(r.week_start)}
+                  isCurrent={false}
+                  editingWeek={editingWeek}
+                  editContent={editContent}
+                  setEditContent={setEditContent}
+                  onEdit={() => { setEditingWeek(r.week_start); setEditContent(r.content); }}
+                  onCancelEdit={() => setEditingWeek(null)}
+                  onSaveEdit={() => saveEdit(r.week_start)}
+                  onDelete={() => deleteReflection(r.week_start)}
+                />
+              ))}
+            </div>
+          )}
         </div>
+      </div>
+      <BottomNav />
+    </div>
+  );
+}
 
-        {pastReflections.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">past reflections</p>
-            {pastReflections.map((r) => (
-              <div key={r.week_start} className="bg-card border border-border rounded-2xl p-4 shadow-soft">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Week {isoWeekNumber(r.week_start)} · {r.week_start}
-                  </p>
-                  {editingWeek !== r.week_start && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setEditingWeek(r.week_start); setEditContent(r.content); }}
-                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        edit
-                      </button>
-                      <button
-                        onClick={() => deleteReflection(r.week_start)}
-                        className="text-xs text-muted-foreground hover:text-red-500 transition-colors"
-                      >
-                        delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {editingWeek === r.week_start ? (
-                  <>
-                    <Textarea
-                      rows={4}
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      className="rounded-xl mb-2"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => saveEdit(r.week_start)}
-                        disabled={!editContent.trim() || editContent === r.content}
-                        className="flex-1 h-9 rounded-xl bg-foreground text-background text-xs"
-                      >
-                        Save
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditingWeek(null)}
-                        className="flex-1 h-9 rounded-xl text-xs"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-foreground leading-relaxed">{r.content}</p>
-                )}
-              </div>
-            ))}
+function ReflectionEntry({
+  weekStart, content, weekNum, isCurrent,
+  editingWeek, editContent, setEditContent,
+  onEdit, onCancelEdit, onSaveEdit, onDelete,
+}: {
+  weekStart: string; content: string; weekNum: number; isCurrent: boolean;
+  editingWeek: string | null; editContent: string;
+  setEditContent: (v: string) => void;
+  onEdit: () => void; onCancelEdit: () => void;
+  onSaveEdit: () => void; onDelete: () => void;
+}) {
+  const isEditing = editingWeek === weekStart;
+  return (
+    <div className="rounded-xl border border-border p-3 bg-warm">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Week {weekNum}{isCurrent ? ' · this week' : ` · ${weekStart}`}
+        </span>
+        {!isEditing && (
+          <div className="flex gap-3">
+            <button onClick={onEdit} className="text-xs text-muted-foreground hover:text-foreground transition-colors">edit</button>
+            <button onClick={onDelete} className="text-xs text-muted-foreground hover:text-red-500 transition-colors">delete</button>
           </div>
         )}
       </div>
-      <BottomNav />
+      {isEditing ? (
+        <>
+          <Textarea rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} className="rounded-xl mb-2 text-sm" />
+          <div className="flex gap-2">
+            <Button onClick={onSaveEdit} disabled={!editContent.trim() || editContent === content} className="flex-1 h-8 rounded-lg bg-foreground text-background text-xs">Save</Button>
+            <Button variant="outline" onClick={onCancelEdit} className="flex-1 h-8 rounded-lg text-xs">Cancel</Button>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-foreground leading-relaxed">{content}</p>
+      )}
     </div>
   );
 }
