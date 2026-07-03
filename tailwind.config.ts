@@ -12,6 +12,7 @@ export default {
         foreground: '#1a0c06',
         accent: '#f26419',
         'accent-foreground': '#ffffff',
+        done: '#22c55e',
         muted: 'rgba(26,12,6,0.08)',
         'muted-foreground': '#8a6a52',
         border: 'rgba(26,12,6,0.10)',

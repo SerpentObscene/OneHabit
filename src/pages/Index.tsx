@@ -175,7 +175,7 @@ export default function Index() {
             disabled={running}
             className={`relative w-64 h-64 rounded-full flex items-center justify-center transition-all overflow-hidden ${
               doneToday
-                ? "bg-foreground text-background shadow-soft"
+                ? "bg-done text-white shadow-soft"
                 : "bg-ember text-accent-foreground shadow-glow"
             } ${pop ? "animate-pop" : ""} ${running ? "cursor-default" : ""}`}
           >

@@ -30,7 +30,7 @@ export default function WeekStrip({ done }: { done: Set<string> }) {
             <div
               className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
                 isDone
-                  ? 'bg-ember text-white'
+                  ? 'bg-done text-white'
                   : isToday
                   ? 'bg-card border-2 border-ember text-foreground'
                   : isFuture

@@ -71,7 +71,7 @@ export default function Insights() {
           <div className="grid grid-cols-10 gap-1.5">
             {last30.map((d) => (
               <div key={d} className={`aspect-square rounded-md ${
-                logs.has(d) ? "bg-foreground" : "bg-muted"
+                logs.has(d) ? "bg-done" : "bg-muted"
               }`} />
             ))}
           </div>
