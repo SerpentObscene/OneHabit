@@ -43,8 +43,10 @@ export async function enablePushNotifications(userId: string): Promise<void> {
     keys: { p256dh: string; auth: string }
   }
 
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
   const { error } = await supabase.from('push_subscriptions').upsert(
-    { user_id: userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+    { user_id: userId, endpoint, p256dh: keys.p256dh, auth: keys.auth, timezone },
     { onConflict: 'user_id,endpoint' }
   )
   if (error) throw new Error(error.message)
