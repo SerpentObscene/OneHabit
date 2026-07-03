@@ -1,9 +1,16 @@
+function localISODate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export function today(): string {
-  return new Date().toISOString().split('T')[0]
+  return localISODate(new Date())
 }
 
 export function toISODate(d: Date): string {
-  return d.toISOString().split('T')[0]
+  return localISODate(d)
 }
 
 export function lastNDays(n: number): Date[] {
@@ -36,9 +43,9 @@ export function computeStreak(dates: string[]): number {
   for (const date of sorted) {
     if (date === cursor) {
       streak++
-      const d = new Date(cursor)
+      const d = new Date(cursor + 'T12:00:00')
       d.setDate(d.getDate() - 1)
-      cursor = d.toISOString().split('T')[0]
+      cursor = localISODate(d)
     } else if (date < cursor) {
       break
     }

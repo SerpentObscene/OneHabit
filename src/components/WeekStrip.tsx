@@ -14,7 +14,7 @@ export default function WeekStrip({ done }: { done: Set<string> }) {
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const iso = d.toISOString().split('T')[0]
+    const iso = [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('-')
     const label = d.toLocaleDateString('en', { weekday: 'short' }).slice(0, 1).toUpperCase()
     return { iso, label, num: d.getDate() }
   })
