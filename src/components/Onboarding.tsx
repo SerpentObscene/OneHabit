@@ -55,7 +55,7 @@ export default function Onboarding({ userId, onCreated }: OnboardingProps) {
               maxLength={2}
             />
             <input
-              className="flex-1 bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember/40 lowercase"
+              className="flex-1 bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember/40"
               placeholder="habit name (e.g. meditate)"
               value={name}
               onChange={e => setName(e.target.value)}
@@ -64,7 +64,7 @@ export default function Onboarding({ userId, onCreated }: OnboardingProps) {
           </div>
 
           <input
-            className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember/40 lowercase"
+            className="w-full bg-card border border-border rounded-2xl px-4 py-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ember/40"
             placeholder="duration (e.g. 10 min) — optional"
             value={detail}
             onChange={e => setDetail(e.target.value)}

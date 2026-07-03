@@ -27,10 +27,24 @@ export default function Insights() {
   const [reflection, setReflection] = useState("");
   const [savedThisWeek, setSavedThisWeek] = useState<string | null>(null);
   const [pastReflections, setPastReflections] = useState<Reflection[]>([]);
+  const [editingWeek, setEditingWeek] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   useEffect(() => { if (!loading && !user) navigate("/auth"); }, [loading, user, navigate]);
 
   const thisWeek = toISODate(startOfWeek());
+
+  const loadReflections = async () => {
+    if (!user) return;
+    const { data: r } = await supabase.from("reflections")
+      .select("week_start,content").eq("user_id", user.id)
+      .order("week_start", { ascending: false });
+    if (r) {
+      const current = r.find(x => x.week_start === thisWeek);
+      if (current) { setReflection(current.content); setSavedThisWeek(current.content); }
+      setPastReflections(r.filter(x => x.week_start !== thisWeek));
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -42,16 +56,7 @@ export default function Insights() {
       setHabitId(h.id);
       const { data: l } = await supabase.from("habit_logs").select("log_date").eq("habit_id", h.id);
       setLogs(new Set((l ?? []).map((r) => r.log_date as string)));
-
-      const { data: r } = await supabase.from("reflections")
-        .select("week_start,content").eq("user_id", user.id)
-        .order("week_start", { ascending: false });
-
-      if (r) {
-        const current = r.find(x => x.week_start === thisWeek);
-        if (current) { setReflection(current.content); setSavedThisWeek(current.content); }
-        setPastReflections(r.filter(x => x.week_start !== thisWeek));
-      }
+      await loadReflections();
     })();
   }, [user]);
 
@@ -68,6 +73,26 @@ export default function Insights() {
     if (error) return toast.error(error.message);
     setSavedThisWeek(reflection);
     toast.success("Reflection saved.");
+  };
+
+  const saveEdit = async (weekStart: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("reflections")
+      .upsert({ user_id: user.id, week_start: weekStart, content: editContent }, { onConflict: "user_id,week_start" } as any);
+    if (error) return toast.error(error.message);
+    setEditingWeek(null);
+    await loadReflections();
+    toast.success("Reflection updated.");
+  };
+
+  const deleteReflection = async (weekStart: string) => {
+    if (!confirm("Delete this reflection?")) return;
+    if (!user) return;
+    const { error } = await supabase.from("reflections")
+      .delete().eq("user_id", user.id).eq("week_start", weekStart);
+    if (error) return toast.error(error.message);
+    setPastReflections(prev => prev.filter(r => r.week_start !== weekStart));
+    toast.success("Reflection deleted.");
   };
 
   return (
@@ -88,21 +113,15 @@ export default function Insights() {
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">last 30 days</p>
           <div className="grid grid-cols-10 gap-1.5">
             {last30.map((d) => (
-              <div key={d} className={`aspect-square rounded-md ${
-                logs.has(d) ? "bg-done" : "bg-muted"
-              }`} />
+              <div key={d} className={`aspect-square rounded-md ${logs.has(d) ? "bg-done" : "bg-muted"}`} />
             ))}
           </div>
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5 shadow-soft">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">weekly reflection</p>
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
-            Week {isoWeekNumber(thisWeek)}
-          </p>
-          <p className="text-sm text-muted-foreground mb-3">
-            What helped this week? What got in the way?
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">Week {isoWeekNumber(thisWeek)}</p>
+          <p className="text-sm text-muted-foreground mb-3">What helped this week? What got in the way?</p>
           <Textarea
             rows={5}
             value={reflection}
@@ -124,10 +143,56 @@ export default function Insights() {
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">past reflections</p>
             {pastReflections.map((r) => (
               <div key={r.week_start} className="bg-card border border-border rounded-2xl p-4 shadow-soft">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                  Week {isoWeekNumber(r.week_start)} · {r.week_start}
-                </p>
-                <p className="text-sm text-foreground leading-relaxed">{r.content}</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Week {isoWeekNumber(r.week_start)} · {r.week_start}
+                  </p>
+                  {editingWeek !== r.week_start && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setEditingWeek(r.week_start); setEditContent(r.content); }}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        edit
+                      </button>
+                      <button
+                        onClick={() => deleteReflection(r.week_start)}
+                        className="text-xs text-muted-foreground hover:text-red-500 transition-colors"
+                      >
+                        delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {editingWeek === r.week_start ? (
+                  <>
+                    <Textarea
+                      rows={4}
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="rounded-xl mb-2"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => saveEdit(r.week_start)}
+                        disabled={!editContent.trim() || editContent === r.content}
+                        className="flex-1 h-9 rounded-xl bg-foreground text-background text-xs"
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setEditingWeek(null)}
+                        className="flex-1 h-9 rounded-xl text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-foreground leading-relaxed">{r.content}</p>
+                )}
               </div>
             ))}
           </div>
