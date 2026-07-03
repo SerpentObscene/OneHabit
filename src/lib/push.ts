@@ -56,7 +56,12 @@ export async function disablePushNotifications(): Promise<void> {
   const reg = await navigator.serviceWorker.ready
   const sub = await reg.pushManager.getSubscription()
   if (sub) {
-    await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+    const { data: { user } } = await supabase.auth.getUser()
+    await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('endpoint', sub.endpoint)
+      .eq('user_id', user?.id ?? '')
     await sub.unsubscribe()
   }
 }

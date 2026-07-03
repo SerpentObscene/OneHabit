@@ -16,6 +16,7 @@ export default function Onboarding({ userId, onCreated }: OnboardingProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
+    if (name.trim().length > 100 || detail.trim().length > 200) return
     setSaving(true)
 
     const { error } = await supabase.from('habits').insert({
@@ -59,6 +60,7 @@ export default function Onboarding({ userId, onCreated }: OnboardingProps) {
               placeholder="habit name (e.g. meditate)"
               value={name}
               onChange={e => setName(e.target.value)}
+              maxLength={100}
               autoFocus
             />
           </div>
@@ -68,6 +70,7 @@ export default function Onboarding({ userId, onCreated }: OnboardingProps) {
             placeholder="duration (e.g. 10 min) — optional"
             value={detail}
             onChange={e => setDetail(e.target.value)}
+            maxLength={200}
           />
 
           <button

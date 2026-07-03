@@ -9,6 +9,7 @@ import { computeStreak, today } from "@/lib/dates";
 import { parseDurationMinutes, formatTimer } from "@/lib/duration";
 import { Check, Flame, Timer, X } from "lucide-react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
 type Habit = { id: string; name: string; detail: string | null; emoji: string | null };
 
@@ -61,6 +62,25 @@ export default function Index() {
     [habit]
   );
 
+  const celebrate = useCallback(() => {
+    if ("vibrate" in navigator) navigator.vibrate?.([60, 30, 120, 30, 60]);
+    const burst = (x: number, angle: number) =>
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        angle,
+        origin: { x, y: 0.6 },
+        colors: ["#f26419", "#22c55e", "#facc15", "#60a5fa", "#f472b6"],
+        scalar: 1.1,
+        zIndex: 9999,
+      });
+    burst(0.4, 120);
+    burst(0.6, 60);
+    setTimeout(() => {
+      burst(0.5, 90);
+    }, 150);
+  }, []);
+
   const markDone = useCallback(async (silent = false) => {
     if (!habit || !user) return;
     if (logs.has(todayISO)) return;
@@ -74,8 +94,9 @@ export default function Index() {
     setLogs((prev) => {
       const next = new Set(prev); next.add(todayISO); return next;
     });
+    celebrate();
     toast.success(silent ? "Time's up. Habit done." : "Done. One more day.");
-  }, [habit, user, logs, todayISO]);
+  }, [habit, user, logs, todayISO, celebrate]);
 
   // Timer tick
   useEffect(() => {
@@ -94,7 +115,6 @@ export default function Index() {
       setTimerEndsAt(null);
       setPop(true); setTimeout(() => setPop(false), 500);
       markDone(true);
-      if ("vibrate" in navigator) navigator.vibrate?.([120, 60, 120]);
     }
   }, [now, timerEndsAt, markDone]);
 
@@ -128,6 +148,7 @@ export default function Index() {
     });
     if (error) return toast.error(error.message);
     const next = new Set(logs); next.add(todayISO); setLogs(next);
+    celebrate();
     toast.success("Done. One more day.");
   };
 

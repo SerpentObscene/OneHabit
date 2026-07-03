@@ -10,7 +10,7 @@ cleanupOutdatedCaches()
 precacheAndRoute(self.__WB_MANIFEST)
 
 registerRoute(
-  ({ url }) => url.hostname.endsWith('.supabase.co'),
+  ({ url }) => /^[a-z0-9-]+\.supabase\.co$/.test(url.hostname),
   new NetworkOnly(),
 )
 registerRoute(
