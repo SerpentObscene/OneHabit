@@ -17,14 +17,14 @@ import {
 type Habit = { id: string; name: string; emoji: string | null };
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState<string>("");
   const [habit, setHabit] = useState<Habit | null>(null);
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
 
-  useEffect(() => { if (!user) navigate("/auth"); }, [user, navigate]);
+  useEffect(() => { if (!loading && !user) navigate("/auth"); }, [loading, user, navigate]);
 
   useEffect(() => {
     (async () => {

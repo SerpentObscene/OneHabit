@@ -9,14 +9,14 @@ import { computeStreak, lastNDays, startOfWeek, toISODate } from "@/lib/dates";
 import { toast } from "sonner";
 
 export default function Insights() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [logs, setLogs] = useState<Set<string>>(new Set());
   const [habitId, setHabitId] = useState<string | null>(null);
   const [reflection, setReflection] = useState("");
   const [savedThisWeek, setSavedThisWeek] = useState<string | null>(null);
 
-  useEffect(() => { if (!user) navigate("/auth"); }, [user, navigate]);
+  useEffect(() => { if (!loading && !user) navigate("/auth"); }, [loading, user, navigate]);
 
   useEffect(() => {
     (async () => {
