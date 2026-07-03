@@ -8,6 +8,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { computeStreak, lastNDays, startOfWeek, toISODate } from "@/lib/dates";
 import { toast } from "sonner";
 
+type Reflection = { week_start: string; content: string }
+
+function isoWeekNumber(dateStr: string): number {
+  const d = new Date(dateStr + 'T12:00:00')
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
 export default function Insights() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -15,8 +26,11 @@ export default function Insights() {
   const [habitId, setHabitId] = useState<string | null>(null);
   const [reflection, setReflection] = useState("");
   const [savedThisWeek, setSavedThisWeek] = useState<string | null>(null);
+  const [pastReflections, setPastReflections] = useState<Reflection[]>([]);
 
   useEffect(() => { if (!loading && !user) navigate("/auth"); }, [loading, user, navigate]);
+
+  const thisWeek = toISODate(startOfWeek());
 
   useEffect(() => {
     (async () => {
@@ -29,10 +43,15 @@ export default function Insights() {
       const { data: l } = await supabase.from("habit_logs").select("log_date").eq("habit_id", h.id);
       setLogs(new Set((l ?? []).map((r) => r.log_date as string)));
 
-      const ws = toISODate(startOfWeek());
       const { data: r } = await supabase.from("reflections")
-        .select("content").eq("user_id", user.id).eq("week_start", ws).maybeSingle();
-      if (r) { setReflection(r.content); setSavedThisWeek(r.content); }
+        .select("week_start,content").eq("user_id", user.id)
+        .order("week_start", { ascending: false });
+
+      if (r) {
+        const current = r.find(x => x.week_start === thisWeek);
+        if (current) { setReflection(current.content); setSavedThisWeek(current.content); }
+        setPastReflections(r.filter(x => x.week_start !== thisWeek));
+      }
     })();
   }, [user]);
 
@@ -44,9 +63,8 @@ export default function Insights() {
 
   const saveReflection = async () => {
     if (!user) return;
-    const ws = toISODate(startOfWeek());
     const { error } = await supabase.from("reflections")
-      .upsert({ user_id: user.id, habit_id: habitId, week_start: ws, content: reflection }, { onConflict: "user_id,week_start" } as any);
+      .upsert({ user_id: user.id, habit_id: habitId, week_start: thisWeek, content: reflection }, { onConflict: "user_id,week_start" } as any);
     if (error) return toast.error(error.message);
     setSavedThisWeek(reflection);
     toast.success("Reflection saved.");
@@ -78,7 +96,10 @@ export default function Insights() {
         </div>
 
         <div className="bg-card border border-border rounded-3xl p-5 shadow-soft">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">weekly reflection</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-1">weekly reflection</p>
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-3">
+            Week {isoWeekNumber(thisWeek)}
+          </p>
           <p className="text-sm text-muted-foreground mb-3">
             What helped this week? What got in the way?
           </p>
@@ -94,9 +115,23 @@ export default function Insights() {
             className="mt-3 w-full h-12 rounded-xl bg-foreground text-background hover:bg-foreground/90"
             disabled={!reflection.trim() || reflection === savedThisWeek}
           >
-            {savedThisWeek === reflection ? "Saved" : "Save reflection"}
+            {savedThisWeek === reflection && savedThisWeek ? "Saved" : "Save reflection"}
           </Button>
         </div>
+
+        {pastReflections.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">past reflections</p>
+            {pastReflections.map((r) => (
+              <div key={r.week_start} className="bg-card border border-border rounded-2xl p-4 shadow-soft">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                  Week {isoWeekNumber(r.week_start)} · {r.week_start}
+                </p>
+                <p className="text-sm text-foreground leading-relaxed">{r.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <BottomNav />
     </div>
