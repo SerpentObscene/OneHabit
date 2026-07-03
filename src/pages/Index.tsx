@@ -95,7 +95,7 @@ export default function Index() {
       const next = new Set(prev); next.add(todayISO); return next;
     });
     celebrate();
-    toast.success(silent ? "Time's up. Habit done." : "Done. One more day.");
+    if (silent) toast.success("Time's up. Habit done.");
   }, [habit, user, logs, todayISO, celebrate]);
 
   // Timer tick
@@ -149,7 +149,6 @@ export default function Index() {
     if (error) return toast.error(error.message);
     const next = new Set(logs); next.add(todayISO); setLogs(next);
     celebrate();
-    toast.success("Done. One more day.");
   };
 
   if (loading || !ready) {
