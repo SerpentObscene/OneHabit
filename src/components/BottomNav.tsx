@@ -7,7 +7,7 @@ export default function BottomNav() {
 
   const items = [
     { icon: Home, path: '/' },
-    { icon: BarChart2, path: '/stats' },
+    { icon: BarChart2, path: '/insights' },
     { icon: User, path: '/profile' },
   ]
 
