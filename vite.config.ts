@@ -8,9 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      // injectRegister: null so we can guard registration in main.tsx
-      // (skips SW in Capacitor native runtime)
       injectRegister: null,
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       includeAssets: ['icons/*.png'],
       manifest: {
         name: 'OneHabit',
@@ -32,28 +33,8 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            // Supabase API — always network, never cache
-            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/.*/i,
-            handler: 'NetworkOnly',
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'StaleWhileRevalidate',
-            options: { cacheName: 'google-fonts-stylesheets' },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-webfonts',
-              expiration: { maxEntries: 10, maxAgeSeconds: 31_536_000 },
-            },
-          },
-        ],
       },
     }),
   ],
