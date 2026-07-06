@@ -1,0 +1,19 @@
+name: Send Reminders
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # every hour at :00
+  workflow_dispatch:      # allow manual trigger for testing
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call send-reminders Edge Function
+        run: |
+          curl -s -X POST \
+            "https://ccgymqxngnzqpxttdisd.supabase.co/functions/v1/send-reminders" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d '{}'
