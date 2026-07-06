@@ -23,6 +23,7 @@ export default function Insights() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [logs, setLogs] = useState<Set<string>>(new Set());
+  const [ratings, setRatings] = useState<Map<string, number>>(new Map());
   const [habitId, setHabitId] = useState<string | null>(null);
   const [reflection, setReflection] = useState("");
   const [savedThisWeek, setSavedThisWeek] = useState<string | null>(null);
@@ -54,8 +55,9 @@ export default function Insights() {
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (!h) return;
       setHabitId(h.id);
-      const { data: l } = await supabase.from("habit_logs").select("log_date").eq("habit_id", h.id);
+      const { data: l } = await supabase.from("habit_logs").select("log_date,rating").eq("habit_id", h.id);
       setLogs(new Set((l ?? []).map((r) => r.log_date as string)));
+      setRatings(new Map((l ?? []).filter(r => (r as any).rating).map(r => [r.log_date as string, (r as any).rating as number])));
       await loadReflections();
     })();
   }, [user]);
@@ -63,7 +65,13 @@ export default function Insights() {
   const last30 = lastNDays(30).map(toISODate);
   const done30 = last30.filter((d) => logs.has(d)).length;
   const streak = computeStreak([...logs]);
-  const weekDates = lastNDays(7).map(toISODate);
+
+  // Current Mon–today only (not rolling 7 days)
+  const weekStart = startOfWeek();
+  const weekDates: string[] = [];
+  const cur = new Date(weekStart);
+  const todayD = new Date();
+  while (cur <= todayD) { weekDates.push(toISODate(new Date(cur))); cur.setDate(cur.getDate() + 1); }
   const doneWeek = weekDates.filter((d) => logs.has(d)).length;
 
   const saveReflection = async () => {
@@ -113,8 +121,24 @@ export default function Insights() {
         <div className="bg-card border border-border rounded-3xl p-5 shadow-soft">
           <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">last 30 days</p>
           <div className="grid grid-cols-10 gap-1.5">
-            {last30.map((d) => (
-              <div key={d} className={`aspect-square rounded-md ${logs.has(d) ? "bg-done" : "bg-muted"}`} />
+            {last30.map((d) => {
+              const rating = ratings.get(d);
+              const bg = !logs.has(d) ? "bg-muted"
+                : rating === 1 ? "bg-red-300"
+                : rating === 2 ? "bg-orange-300"
+                : rating === 3 ? "bg-yellow-300"
+                : rating === 4 ? "bg-lime-400"
+                : rating === 5 ? "bg-green-500"
+                : "bg-done";
+              return <div key={d} title={d} className={`aspect-square rounded-md ${bg}`} />;
+            })}
+          </div>
+          <div className="flex items-center gap-2 mt-3 justify-end">
+            <span className="text-[10px] text-muted-foreground">mood:</span>
+            {[["bg-red-300","😢"],["bg-orange-300","😕"],["bg-yellow-300","😐"],["bg-lime-400","🙂"],["bg-green-500","😊"]].map(([cls,emoji]) => (
+              <span key={cls} className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                <span className={`inline-block w-2.5 h-2.5 rounded-sm ${cls}`} />{emoji}
+              </span>
             ))}
           </div>
         </div>

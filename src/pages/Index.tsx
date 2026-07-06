@@ -20,6 +20,7 @@ export default function Index() {
   const [logs, setLogs] = useState<Set<string>>(new Set());
   const [ready, setReady] = useState(false);
   const [pop, setPop] = useState(false);
+  const [todayRating, setTodayRating] = useState<number | null>(null);
 
   // timer state
   const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
@@ -44,9 +45,11 @@ export default function Index() {
     if (h) {
       const { data: l } = await supabase
         .from("habit_logs")
-        .select("log_date")
+        .select("log_date,rating")
         .eq("habit_id", h.id);
       setLogs(new Set((l ?? []).map((r) => r.log_date as string)));
+      const tl = (l ?? []).find(r => r.log_date === today());
+      setTodayRating(tl ? (tl as any).rating ?? null : null);
     }
     setReady(true);
   }, [user]);
@@ -127,6 +130,15 @@ export default function Index() {
     setTimerEndsAt(null);
     toast("Timer cancelled.");
   };
+
+  const saveRating = useCallback(async (val: number) => {
+    if (!habit || !user) return;
+    setTodayRating(val);
+    await supabase.from("habit_logs")
+      .update({ rating: val } as any)
+      .eq("habit_id", habit.id)
+      .eq("log_date", todayISO);
+  }, [habit, user, todayISO]);
 
   const handleBigButton = async () => {
     if (!habit || !user) return;
@@ -252,6 +264,23 @@ export default function Index() {
             >
               <X className="w-4 h-4" /> cancel timer
             </button>
+          )}
+
+          {doneToday && (
+            <div className="mt-6 text-center">
+              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">how did it feel?</p>
+              <div className="flex justify-center gap-4">
+                {([["😢",1],["😕",2],["😐",3],["🙂",4],["😊",5]] as [string,number][]).map(([emoji, val]) => (
+                  <button
+                    key={val}
+                    onClick={() => saveRating(val)}
+                    className={`text-3xl transition-all duration-150 ${todayRating === val ? "scale-125" : "opacity-40 hover:opacity-100 hover:scale-110"}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
