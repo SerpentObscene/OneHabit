@@ -15,6 +15,12 @@ function localHour(timezone: string): number {
   )
 }
 
+function localDateISO(timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date())
+}
+
 function b64uToBytes(s: string): Uint8Array {
   const cleaned = s.trim().replace(/\s/g, '')
   const std = cleaned.replace(/-/g, '+').replace(/_/g, '/') + '===='.slice(0, (4 - cleaned.length % 4) % 4)
@@ -158,7 +164,7 @@ Deno.serve(async (req) => {
 
     const { data: subs, error } = await supabase
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth, timezone')
+      .select('id, user_id, endpoint, p256dh, auth, timezone')
 
     if (error) return new Response(error.message, { status: 500 })
 
@@ -182,6 +188,26 @@ Deno.serve(async (req) => {
           badge: '/icons/icon-192.png',
           data: { url: '/' },
         })
+
+        // Skip if habit already completed today in user's local timezone
+        const localDate = localDateISO(sub.timezone ?? 'UTC')
+        const { data: habit } = await supabase
+          .from('habits')
+          .select('id')
+          .eq('user_id', sub.user_id)
+          .eq('archived', false)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        if (habit) {
+          const { data: log } = await supabase
+            .from('habit_logs')
+            .select('id')
+            .eq('habit_id', habit.id)
+            .eq('log_date', localDate)
+            .maybeSingle()
+          if (log) return // already done today, no reminder needed
+        }
 
         try {
           await sendWebPush(sub.endpoint, sub.p256dh, sub.auth, payload, vapidPublicKey, vapidPrivateKey)
