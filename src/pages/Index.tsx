@@ -7,11 +7,30 @@ import BottomNav from "@/components/BottomNav";
 import WeekStrip from "@/components/WeekStrip";
 import { computeStreak, today } from "@/lib/dates";
 import { parseDurationMinutes, formatTimer } from "@/lib/duration";
-import { Check, Flame, Timer, X } from "lucide-react";
+import { Check, Flame, Timer, X, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 
 type Habit = { id: string; name: string; detail: string | null; emoji: string | null };
+
+function isMilestone(n: number) {
+  return n === 7 || n === 30 || (n >= 100 && n % 100 === 0);
+}
+
+// Returns inline style to shift button hue based on mood rating
+function doneBgStyle(rating: number | null): React.CSSProperties {
+  if (!rating) return {};
+  // hue shifts from cool (low) to warm-green (high), saturation rises
+  const map: Record<number, [number, number]> = {
+    1: [200, 28], // cool slate-teal
+    2: [175, 38], // cool teal
+    3: [145, 52], // neutral (≈ current bg-done)
+    4: [132, 60], // richer green
+    5: [118, 65], // warm bright green
+  };
+  const [hue, sat] = map[rating] ?? [145, 52];
+  return { backgroundColor: `hsl(${hue}deg ${sat}% 44%)`, transition: "background-color 600ms ease" };
+}
 
 export default function Index() {
   const { user, loading } = useAuth();
@@ -21,6 +40,8 @@ export default function Index() {
   const [ready, setReady] = useState(false);
   const [pop, setPop] = useState(false);
   const [todayRating, setTodayRating] = useState<number | null>(null);
+  const [pendingUndo, setPendingUndo] = useState(false);
+  const undoTimerRef = useRef<number | null>(null);
 
   // timer state
   const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
@@ -30,6 +51,11 @@ export default function Index() {
   useEffect(() => {
     if (!loading && !user) navigate("/auth");
   }, [loading, user, navigate]);
+
+  // Clear undo timer on unmount
+  useEffect(() => {
+    return () => { if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current); };
+  }, []);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -65,23 +91,43 @@ export default function Index() {
     [habit]
   );
 
-  const celebrate = useCallback(() => {
-    if ("vibrate" in navigator) navigator.vibrate?.([60, 30, 120, 30, 60]);
-    const burst = (x: number, angle: number) =>
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        angle,
-        origin: { x, y: 0.6 },
-        colors: ["#f26419", "#22c55e", "#facc15", "#60a5fa", "#f472b6"],
-        scalar: 1.1,
-        zIndex: 9999,
-      });
-    burst(0.4, 120);
-    burst(0.6, 60);
-    setTimeout(() => {
-      burst(0.5, 90);
-    }, 150);
+  // Streak-scaled celebration: milestone days get a bigger multi-burst
+  const celebrate = useCallback((newStreak: number) => {
+    const milestone = isMilestone(newStreak);
+
+    if (milestone) {
+      if ("vibrate" in navigator) navigator.vibrate?.([80, 40, 80, 40, 200, 40, 80, 40, 80]);
+      const burst = (x: number, angle: number, count: number) =>
+        confetti({
+          particleCount: count,
+          spread: 90,
+          angle,
+          origin: { x, y: 0.5 },
+          colors: ["#f26419", "#22c55e", "#facc15", "#60a5fa", "#f472b6"],
+          scalar: 1.3,
+          zIndex: 9999,
+        });
+      burst(0.3, 130, 120);
+      burst(0.7, 50, 120);
+      setTimeout(() => { burst(0.5, 90, 100); }, 200);
+      setTimeout(() => { burst(0.2, 150, 80); burst(0.8, 30, 80); }, 450);
+      setTimeout(() => { burst(0.5, 90, 60); }, 700);
+    } else {
+      if ("vibrate" in navigator) navigator.vibrate?.([60, 30, 120, 30, 60]);
+      const burst = (x: number, angle: number) =>
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          angle,
+          origin: { x, y: 0.6 },
+          colors: ["#f26419", "#22c55e", "#facc15", "#60a5fa", "#f472b6"],
+          scalar: 1.1,
+          zIndex: 9999,
+        });
+      burst(0.4, 120);
+      burst(0.6, 60);
+      setTimeout(() => { burst(0.5, 90); }, 150);
+    }
   }, []);
 
   const markDone = useCallback(async (silent = false) => {
@@ -94,10 +140,11 @@ export default function Index() {
       if (!silent) toast.error(error.message);
       return;
     }
-    setLogs((prev) => {
-      const next = new Set(prev); next.add(todayISO); return next;
-    });
-    celebrate();
+    const nextLogs = new Set(logs);
+    nextLogs.add(todayISO);
+    const newStreak = computeStreak([...nextLogs]);
+    setLogs(nextLogs);
+    celebrate(newStreak);
     if (silent) toast.success("Time's up. Habit done.");
   }, [habit, user, logs, todayISO, celebrate]);
 
@@ -142,25 +189,41 @@ export default function Index() {
 
   const handleBigButton = async () => {
     if (!habit || !user) return;
-    setPop(true); setTimeout(() => setPop(false), 500);
+
     if (doneToday) {
-      // un-mark
-      await supabase.from("habit_logs").delete()
-        .eq("habit_id", habit.id).eq("log_date", todayISO);
-      const next = new Set(logs); next.delete(todayISO); setLogs(next);
+      if (pendingUndo) {
+        // Second tap within window — actually undo
+        if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+        setPendingUndo(false);
+        await supabase.from("habit_logs").delete()
+          .eq("habit_id", habit.id).eq("log_date", todayISO);
+        const next = new Set(logs); next.delete(todayISO); setLogs(next);
+        setTodayRating(null);
+      } else {
+        // First tap — open 3-second undo window
+        if (undoTimerRef.current) window.clearTimeout(undoTimerRef.current);
+        setPendingUndo(true);
+        undoTimerRef.current = window.setTimeout(() => setPendingUndo(false), 3000);
+      }
       return;
     }
+
+    setPop(true); setTimeout(() => setPop(false), 500);
+
     if (durationMin && timerEndsAt === null) {
       startTimer();
       return;
     }
     if (timerEndsAt !== null) return; // ignore taps while timer running
+
     const { error } = await supabase.from("habit_logs").insert({
       user_id: user.id, habit_id: habit.id, log_date: todayISO,
     });
     if (error) return toast.error(error.message);
-    const next = new Set(logs); next.add(todayISO); setLogs(next);
-    celebrate();
+    const next = new Set(logs); next.add(todayISO);
+    const newStreak = computeStreak([...next]);
+    setLogs(next);
+    celebrate(newStreak);
   };
 
   if (loading || !ready) {
@@ -179,6 +242,19 @@ export default function Index() {
     ? 1 - remainingSec / totalSec
     : 0;
   const running = timerEndsAt !== null;
+
+  // Button background: mood-tinted when done+rated, dimmed when pending undo
+  const buttonBgClass = doneToday
+    ? pendingUndo
+      ? "text-white shadow-soft"
+      : `${todayRating ? "" : "bg-done"} text-white shadow-soft`
+    : "bg-ember text-accent-foreground shadow-glow";
+
+  const buttonStyle: React.CSSProperties = doneToday && !pendingUndo && todayRating
+    ? doneBgStyle(todayRating)
+    : doneToday && pendingUndo
+      ? { backgroundColor: "hsl(145deg 30% 55%)", transition: "background-color 200ms ease" }
+      : {};
 
   return (
     <div className="min-h-[100dvh] bg-warm safe-top pb-24">
@@ -205,11 +281,8 @@ export default function Index() {
           <button
             onClick={handleBigButton}
             disabled={running}
-            className={`relative w-64 h-64 rounded-full flex items-center justify-center transition-all overflow-hidden ${
-              doneToday
-                ? "bg-done text-white shadow-soft"
-                : "bg-ember text-accent-foreground shadow-glow"
-            } ${pop ? "animate-pop" : ""} ${running ? "cursor-default" : ""}`}
+            style={buttonStyle}
+            className={`relative w-64 h-64 rounded-full flex items-center justify-center transition-all overflow-hidden ${buttonBgClass} ${pop ? "animate-pop" : ""} ${running ? "cursor-default" : ""}`}
           >
             {/* progress ring */}
             {running && (
@@ -227,10 +300,17 @@ export default function Index() {
 
             <div className="text-center px-6 relative">
               {doneToday ? (
-                <>
-                  <Check className="w-14 h-14 mx-auto mb-2" strokeWidth={3} />
-                  <div className="font-semibold lowercase tracking-wide">done today</div>
-                </>
+                pendingUndo ? (
+                  <>
+                    <RotateCcw className="w-10 h-10 mx-auto mb-2 opacity-80" strokeWidth={2} />
+                    <div className="font-semibold lowercase tracking-wide text-sm opacity-90">tap again to undo</div>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-14 h-14 mx-auto mb-2" strokeWidth={3} />
+                    <div className="font-semibold lowercase tracking-wide">done today</div>
+                  </>
+                )
               ) : running ? (
                 <>
                   <div className="display text-5xl font-bold tabular-nums leading-none mb-2">
@@ -266,7 +346,7 @@ export default function Index() {
             </button>
           )}
 
-          {doneToday && (
+          {doneToday && !pendingUndo && (
             <div className="mt-6 text-center">
               <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-3">how did it feel?</p>
               <div className="flex justify-center gap-4">
