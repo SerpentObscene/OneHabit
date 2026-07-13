@@ -17,19 +17,19 @@ function isMilestone(n: number) {
   return n === 7 || n === 30 || (n >= 100 && n % 100 === 0);
 }
 
-// Returns inline style to shift button hue based on mood rating
+// Same hue family as the heatmap (red→orange→amber→lime→green),
+// but darkened so white text stays readable on the large button.
+const RATING_COLORS: Record<number, string> = {
+  1: "#dc2626", // red-600   (heatmap: bg-red-300)
+  2: "#ea580c", // orange-600 (heatmap: bg-orange-300)
+  3: "#d97706", // amber-600  (heatmap: bg-yellow-300)
+  4: "#65a30d", // lime-600   (heatmap: bg-lime-400)
+  5: "#16a34a", // green-600  (heatmap: bg-green-500)
+};
+
 function doneBgStyle(rating: number | null): React.CSSProperties {
   if (!rating) return {};
-  // hue shifts from cool (low) to warm-green (high), saturation rises
-  const map: Record<number, [number, number]> = {
-    1: [200, 28], // cool slate-teal
-    2: [175, 38], // cool teal
-    3: [145, 52], // neutral (≈ current bg-done)
-    4: [132, 60], // richer green
-    5: [118, 65], // warm bright green
-  };
-  const [hue, sat] = map[rating] ?? [145, 52];
-  return { backgroundColor: `hsl(${hue}deg ${sat}% 44%)`, transition: "background-color 600ms ease" };
+  return { backgroundColor: RATING_COLORS[rating], transition: "background-color 600ms ease" };
 }
 
 export default function Index() {
